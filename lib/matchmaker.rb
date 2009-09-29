@@ -3,10 +3,21 @@ module MatchMaker
 end
 
 class MatchMaker::Case
-  class NoMatch < Exception
+  class CaseError < RuntimeError
   end
 
-  class CaseError < RuntimeError
+  class NoMatch < CaseError
+    def initialize(object=nil)
+      @object = object
+    end
+
+    def inspect
+      self.to_s
+    end
+
+    def to_s
+      "#<#{self.class} #{@object.inspect}>"
+    end
   end
   
   class NoClauses < CaseError
@@ -35,7 +46,7 @@ class MatchMaker::Case
         end
         
       end
-      raise NoMatch unless result
+      context.fail unless result
       if @guard
         result = @guard.call(context.current)
         raise NoMatch unless result
@@ -74,14 +85,14 @@ class MatchMaker::Case
 
     def bind(var,val)
       if @bindings.has_key?(var)
-        raise NoMatch unless @bindings[var] == val
+        self.fail unless @bindings[var] == val
       else
         @bindings[var] = val
       end
     end
 
     def fail
-      raise NoMatch
+      raise NoMatch.new(self.current) # what object is failing patter match
     end
 
     unless defined?(BasicObject)
@@ -355,13 +366,15 @@ class MatchMaker::Case
   end
   
   def match(o)
+    no_match = nil
     @clauses.each { |c|
       begin
         return c.match(o)
       rescue NoMatch
+        no_match = $!
       end
     }
-    raise NoMatch
+    raise no_match
   end
 
   def to_s
