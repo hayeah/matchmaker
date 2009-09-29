@@ -160,7 +160,7 @@ describe Case do
   describe "integer pattern" do
     it "should match a range" do
       c = Case.new do
-        of(integer(1..100){ |i| i.even?}) 
+        of(integer(1..100){ |i| i % 2 == 0}) 
       end
       c.match(2).should == true
       c.match(100).should == true
@@ -389,7 +389,7 @@ describe Case do
     it "should use guard in tail pattern" do
       c = Case.new {
         of [_!(1){ |o| false }]
-        of [_!(integer(){ |o| o.even?}){ |tail| tail.length == 3 }]
+        of [_!(integer(){ |o| o % 2 == 0 }){ |tail| tail.length == 3 }]
       }
       lambda {c.match([1,1,1])}.should not_match
       lambda {c.match([2,2,1])}.should not_match

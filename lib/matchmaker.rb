@@ -80,6 +80,17 @@ class MatchMaker::Case
       end
     end
 
+    def fail
+      raise NoMatch
+    end
+
+    unless defined?(BasicObject)
+      # for ruby 1.8
+      class BasicObject #:nodoc:
+        instance_methods.each { |m| undef_method m unless m =~ /^__|instance_eval|object_id/ }
+      end
+    end
+    
     class CallContext < BasicObject
       def initialize(bindings)
         @bindings = bindings
@@ -252,15 +263,19 @@ class MatchMaker::Case
     }
 
     #allow star pattern only for the last position
-    if star_pattern_index = patterns.index { |p| StarPattern === p }
-      if star_pattern_index != patterns.length - 1
-        raise "badarg: star pattern only allowed at the end of the array."
+    star_pattern = nil
+    # this works with 1.8.6
+    patterns.each_with_index { |pattern,i|
+      # allows star pattern only at the end of the pattern
+      if pattern.is_a?(StarPattern)
+        unless i == patterns.length - 1
+          raise "badarg: star pattern only allowed at the end of the array."
+        end
+        star_pattern = pattern
       end
-      star_pattern = patterns.last
+    }
+    if star_pattern
       patterns = patterns[0..-2]
-    else
-      star_pattern = nil
-      patterns = patterns
     end
     
     matcher = lambda { |o,context|
@@ -300,7 +315,7 @@ class MatchMaker::Case
       [k,(v.is_a?(Pattern) ? v : is(v))]
     }
     matcher = lambda { |h,context|
-      return false unless h.is_a?(Hash)
+      context.fail unless h.is_a?(Hash)
       patterns.each { |(k,value_pattern)|
         case k
         when Array
@@ -320,7 +335,7 @@ class MatchMaker::Case
           
         else
           # required key
-          return false unless h.has_key?(k)
+          context.fail unless h.has_key?(k)
           context.nest(h[k],value_pattern)
         end
       }
@@ -358,8 +373,9 @@ class MatchMaker::Case
   end
 end
 
+Case = MatchMaker::Case
+
 def Case(obj,&block)
   Case.new(&block).match(obj)
 end
 
-Case = MatchMaker::Case
