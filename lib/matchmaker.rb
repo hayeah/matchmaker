@@ -3,7 +3,7 @@ module MatchMaker
 end
 
 class MatchMaker::Case
-  class CaseError < RuntimeError
+  class CaseError < StandardError
   end
 
   class NoMatch < CaseError
