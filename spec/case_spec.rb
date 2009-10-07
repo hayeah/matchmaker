@@ -9,6 +9,14 @@ describe Case do
     raise_error(Case::UnboundVariable)
   end
 
+  TEST_CONSTANT_1 = :test_constant_1
+  it "DSL should preserve module nesting of original block" do
+    pending
+    Case(1) {
+      of(1) { TEST_CONSTANT_1 }
+    }.should == TEST_CONSTANT_1
+  end
+
   it "should make a pattern object" do
     pat = Case.pattern {
       [:a,integer,string]

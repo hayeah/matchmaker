@@ -113,11 +113,22 @@ class MatchMaker::Case
       end
     end
     
-
+    IS_RUBY_19 = (RUBY_VERSION > "1.9")
     def call(&block)
       return block.call if @bindings.empty?
-      bo = CallContext.new(@bindings)
-      bo.instance_eval &block
+      context = CallContext.new(@bindings)
+
+      #http://coderrr.wordpress.com/2009/06/02/fixing-constant-lookup-in-dsls-in-ruby-1-9/
+      #http://coderrr.wordpress.com/2009/05/18/dynamically-adding-a-constant-nesting-in-ruby-1-9/
+      if IS_RUBY_19
+        # what a fail
+        l = lambda { context.instance_eval(&block) }
+        modules = block.binding.eval "Module.nesting"
+        p [:match,modules]
+        modules.reverse.inject(l) {|l, k| lambda { k.class_eval(&l) } }.call
+      else
+        context.instance_eval &block
+      end
     end
 
     def nest(object,pattern=nil)
