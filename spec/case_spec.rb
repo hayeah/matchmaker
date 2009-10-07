@@ -9,6 +9,16 @@ describe Case do
     raise_error(Case::UnboundVariable)
   end
 
+  it "should make a pattern object" do
+    pat = Case.pattern {
+      [:a,integer,string]
+    }
+    pat.should be_a(Case::Pattern)
+    Case([:a,10,"abc"]) {
+      of(pat)
+    }.should == true
+  end
+
   it "should pattern match with shortcut" do
     Case("a") {
       of "a"

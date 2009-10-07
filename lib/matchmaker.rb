@@ -145,6 +145,15 @@ class MatchMaker::Case
     end
   end
 
+  def self.pattern(&block)
+    pat = nil
+    Case.new {
+      pat = is(self.instance_eval(&block))
+      of(pat) # dummy clause to prevent raising error
+    }
+    pat
+  end
+
   def initialize(&block)
     @clauses = []
     self.instance_eval(&block)
