@@ -1,8 +1,6 @@
 require 'set'
-module MatchMaker
-end
 
-class MatchMaker::Case
+class Case
   class CaseError < StandardError
   end
 
@@ -124,7 +122,6 @@ class MatchMaker::Case
         # what a fail
         l = lambda { context.instance_eval(&block) }
         modules = block.binding.eval "Module.nesting"
-        p [:match,modules]
         modules.reverse.inject(l) {|l, k| lambda { k.class_eval(&l) } }.call
       else
         context.instance_eval &block
@@ -355,14 +352,14 @@ class MatchMaker::Case
           # try matching iff the value is non-nil
           context.nest(h[k],value_pattern) if value=h[k]
           # regexp match is a bit silly...
-        # when Regexp
-#           # pattern applies to all keys that matches regexp
-#           re = k
-#           hash.keys.each do |k|
-#             if k =~ re
-#               context.nest(h[k],value_pattern)
-#             end
-#           end
+          # when Regexp
+          #           # pattern applies to all keys that matches regexp
+          #           re = k
+          #           hash.keys.each do |k|
+          #             if k =~ re
+          #               context.nest(h[k],value_pattern)
+          #             end
+          #           end
           
         else
           # required key
@@ -405,6 +402,12 @@ class MatchMaker::Case
     self.to_s
   end
 end
+
+module MatchMaker
+  Case = ::Case
+end
+
+
 
 Case = MatchMaker::Case
 
