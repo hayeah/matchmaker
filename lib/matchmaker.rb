@@ -18,19 +18,18 @@ class Case
     end
 
     def to_s
+      io = StringIO.new
+      io.puts "#<#{self.class} #{@msg}"
       trace = @stack.zip(@pattern_stack).map { |obj,pat|
         if pat.label
-          "#{pat.label}: #{obj}"
+          io.print pat.label
+          io.print ": "
+          PP.pp(obj,io)
+          
         else
-          "#{obj}"
+          PP.pp(obj,io)
         end
-      }.join("\n")
-      "#<#{self.class} #{@msg}\n#{trace}>"
-    end
-
-    def pp_object(o)
-      io = StringIO.new
-      PP.pp(o,io)
+      }
       io.string
     end
   end
