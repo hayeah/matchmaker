@@ -1,4 +1,6 @@
 require 'set'
+require 'pp'
+require 'stringio'
 
 class Case
   class CaseError < StandardError
@@ -24,6 +26,12 @@ class Case
         end
       }.join("\n")
       "#<#{self.class} #{@msg}\n#{trace}>"
+    end
+
+    def pp_object(o)
+      io = StringIO.new
+      PP.pp(o,io)
+      io.string
     end
   end
   
