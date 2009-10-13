@@ -34,6 +34,21 @@ class Case
       io.string
     end
   end
+
+  class CaseFail < CaseError
+    def initialize(errors)
+      @errors = errors
+    end
+
+    def to_s
+      io = StringIO.new
+      @errors.each { |e|
+        io.puts e
+        io.puts ""
+      }
+      io.string
+    end
+  end
   
   class NoClauses < CaseError
   end
@@ -65,7 +80,7 @@ class Case
       context.fail unless result
       if @guard
         result = @guard.call(context.current)
-        raise NoMatch unless result
+        context.fail("guard failed") unless result
       end
       context.bind(@variable,context.current) if @variable
       true
@@ -375,7 +390,9 @@ class Case
           # optional key
           k = k.first
           # try matching iff the value is non-nil
-          context.nest(value,value_pattern) if value=h[k]
+          if value=h[k]
+            context.nest(value,value_pattern)
+          end
           # regexp match is a bit silly...
           # when Regexp
           #           # pattern applies to all keys that matches regexp
@@ -408,15 +425,15 @@ class Case
   end
   
   def match(o)
-    no_match = nil
+    errors = []
     @clauses.each { |c|
       begin
         return c.match(o)
       rescue NoMatch
-        no_match = $!
+        errors << $!
       end
     }
-    raise no_match
+    raise CaseFail.new(errors)
   end
 
   def to_s
