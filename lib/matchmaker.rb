@@ -5,8 +5,10 @@ class Case
   end
 
   class NoMatch < CaseError
-    def initialize(object=nil)
-      @object = object
+    def initialize(stack,pattern_stack,msg=nil)
+      @stack = stack
+      @pattern_stack = pattern_stack
+      @msg = msg
     end
 
     def inspect
@@ -14,7 +16,14 @@ class Case
     end
 
     def to_s
-      "#<#{self.class} #{@object.inspect}>"
+      trace = @stack.zip(@pattern_stack).map { |obj,pat|
+        if pat.label
+          "#{pat.label}: #{obj}"
+        else
+          "#{obj}"
+        end
+      }.join("\n")
+      "#<#{self.class} #{@msg}\n#{trace}>"
     end
   end
   
@@ -25,11 +34,12 @@ class Case
   end
   
   class Pattern
-    attr_reader :matcher, :guard, :variable
-    def initialize(matcher,guard,variable)
+    attr_reader :matcher, :guard, :variable, :label
+    def initialize(matcher,guard,variable,label=nil)
       @matcher = matcher # Proc || Pattern
       @guard = guard # Proc || nil
       @variable = variable.to_s.downcase.to_sym if !variable.nil?
+      @label = label
     end
 
     def match(context)
@@ -57,6 +67,10 @@ class Case
       @guard = block
       self
     end
+
+    def bind(var)
+      
+    end
   end
 
   # matches the tail of an array
@@ -70,10 +84,11 @@ class Case
   end
 
   class MatchContext
-    def initialize(object)
+    def initialize(pattern,object)
       # stack of references we are destructuring,
       # we start off with the object itself.
       @stack = [object]
+      @pattern_stack = [pattern]
       @bindings = {}
     end
 
@@ -89,8 +104,8 @@ class Case
       end
     end
 
-    def fail
-      raise NoMatch.new(self.current) # what object is failing patter match
+    def fail(msg=nil)
+      raise NoMatch.new(@stack,@pattern_stack,msg) # what object is failing patter match
     end
 
     unless defined?(BasicObject)
@@ -128,14 +143,16 @@ class Case
       end
     end
 
-    def nest(object,pattern=nil)
+    def nest(object,pattern)
       @stack.push(object)
+      @pattern_stack.push(pattern)
       if pattern
         pattern.match(self)
       else
         yield
       end
       @stack.pop
+      @pattern_stack.pop
     end
   end
 
@@ -147,7 +164,7 @@ class Case
     end
 
     def match(object)
-      context = MatchContext.new(object)
+      context = MatchContext.new(@pattern,object)
       @pattern.match(context)
       @action.nil? ? true : context.call(&@action)
     end
@@ -207,7 +224,7 @@ class Case
     matcher = lambda { |obj|
       obj == val
     }
-    Pattern.new(matcher,guard,var)
+    Pattern.new(matcher,guard,var,"Literal(#{val})")
   end
 
   def a(klass,var=nil,&guard)
@@ -215,7 +232,7 @@ class Case
     matcher = lambda { |o|
       o.is_a?(klass)
     }
-    Pattern.new(matcher,guard,var)
+    Pattern.new(matcher,guard,var,"Class(#{klass})")
   end
 
   def integer(o=nil,var=nil,&guard)
@@ -227,13 +244,13 @@ class Case
       matcher_lambda = lambda { |o|
         range.include?(o)
       }
-      Pattern.new(matcher_lambda,guard,var)
+      Pattern.new(matcher_lambda,guard,var,"Integer(#{range})")
     when Array
       set = Set.new(o)
       matcher_lambda = lambda { |o|
         set.include?(o)
       }
-      Pattern.new(matcher_lambda,guard,var)
+      Pattern.new(matcher_lambda,guard,var,"Integer(#{o.join(",")})")
     when nil
       a(Integer,var,&guard)
     else
@@ -250,7 +267,7 @@ class Case
       matcher_lambda = lambda { |o|
         o.is_a?(Symbol) && o.to_s =~ re
       }
-      Pattern.new(matcher_lambda,guard,var)
+      Pattern.new(matcher_lambda,guard,var,"Symbol")
     when nil
       a(Symbol,var,&guard)
     else
@@ -267,7 +284,7 @@ class Case
       matcher_lambda = lambda { |o|
         o.is_a?(String) && o.to_s =~ re
       }
-      Pattern.new(matcher_lambda,guard,var)
+      Pattern.new(matcher_lambda,guard,var,"String")
     when nil
       a(String,var,&guard)
     else
@@ -310,10 +327,10 @@ class Case
       return false unless o.is_a?(Array)
       if star_pattern
         # this is an array pattern with star pattern to match tial
-        return false if patterns.length > o.length + 1
+        context.fail("not enough elements") if patterns.length > o.length + 1
       else
         # no star pattern
-        return false if patterns.length != o.length
+        context.fail("not enough elements") if patterns.length != o.length
       end
       # match mandatory elements
       patterns.each_with_index { |pattern,i|
@@ -330,7 +347,7 @@ class Case
       end
       true
     }
-    Pattern.new(matcher,guard,var)
+    Pattern.new(matcher,guard,var,"Array")
   end
 
   # ["key"] => optional key
@@ -350,7 +367,7 @@ class Case
           # optional key
           k = k.first
           # try matching iff the value is non-nil
-          context.nest(h[k],value_pattern) if value=h[k]
+          context.nest(value,value_pattern) if value=h[k]
           # regexp match is a bit silly...
           # when Regexp
           #           # pattern applies to all keys that matches regexp
@@ -363,13 +380,13 @@ class Case
           
         else
           # required key
-          context.fail unless h.has_key?(k)
+          context.fail("no required key: #{k}") unless h.has_key?(k)
           context.nest(h[k],value_pattern)
         end
       }
       true
     }
-    Pattern.new(matcher,guard,var)
+    Pattern.new(matcher,guard,var,"Hash")
   end
 
   def _(var=nil,&guard)
@@ -406,10 +423,6 @@ end
 module MatchMaker
   Case = ::Case
 end
-
-
-
-Case = MatchMaker::Case
 
 def Case(obj,&block)
   Case.new(&block).match(obj)
