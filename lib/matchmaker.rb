@@ -318,6 +318,31 @@ class Case
     Pattern.new(is(o),guard,var)
   end
 
+  def one_of(patterns,var=nil,&guard)
+    patterns = patterns.map { |o|
+      case o
+      when Pattern, StarPattern
+        o
+      else
+        is(o) # coerce into pattern
+      end
+    }
+    matcher = lambda { |o,context|
+      r = false
+      patterns.each { |pat|
+        begin
+          context.nest(o,pat)
+          r = true
+          break
+        rescue NoMatch
+          next
+        end
+      }
+      return r
+    }
+    Pattern.new(matcher,guard,var,"OneOf")
+  end
+  
   def array(os,var=nil,&guard)
     # build structrual pattern
     patterns = os.map { |o|

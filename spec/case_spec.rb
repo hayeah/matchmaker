@@ -345,6 +345,19 @@ describe Case do
     end
   end
 
+  describe "one_of pattern" do
+    it "matches one_of a number of patterns" do
+      c = Case.new do
+        of(one_of([1,"b"],:V)) {
+          v
+        }
+      end
+      c.match(1).should == 1
+      c.match("b").should == "b"
+      lambda { c.match("c") }.should not_match
+    end
+  end
+
   describe "array pattern" do
     it "should match the exact length of array" do
       c = Case.new {
