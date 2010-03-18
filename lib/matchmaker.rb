@@ -34,7 +34,7 @@ class Case
     end
   end
 
-  class CaseFail < CaseError
+  class Fail < CaseError
     def initialize(errors)
       @errors = errors
     end
@@ -457,7 +457,7 @@ class Case
         errors << $!
       end
     }
-    raise CaseFail.new(errors)
+    raise Fail.new(errors)
   end
 
   def to_s

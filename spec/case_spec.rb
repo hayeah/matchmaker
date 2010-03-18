@@ -2,7 +2,7 @@ require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 describe Case do
   def not_match
-    raise_error(Case::CaseFail)
+    raise_error(Case::Fail)
   end
 
   def be_unbound
