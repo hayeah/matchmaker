@@ -157,7 +157,7 @@ class Case
       #http://coderrr.wordpress.com/2009/05/18/dynamically-adding-a-constant-nesting-in-ruby-1-9/
       if IS_RUBY_19
         # what a fail
-        l = lambda { context.instance_eval(&block) }
+        l = Proc.new { context.instance_eval(&block) }
         modules = block.binding.eval "Module.nesting"
         modules.reverse.inject(l) {|l, k| lambda { k.class_eval(&l) } }.call
       else
